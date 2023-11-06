@@ -15,7 +15,7 @@ plugins {
 }
 
 android {
-    namespace = "moe.rhwong.bocchirock"
+    namespace = "moe.fuqiuluo.shamrock"
     ndkVersion = "25.1.8937393"
     compileSdk = 33
 
