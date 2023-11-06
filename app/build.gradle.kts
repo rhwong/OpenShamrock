@@ -15,12 +15,12 @@ plugins {
 }
 
 android {
-    namespace = "moe.fuqiuluo.shamrock"
+    namespace = "moe.rhwong.bocchirock"
     ndkVersion = "25.1.8937393"
     compileSdk = 33
 
     defaultConfig {
-        applicationId = "moe.fuqiuluo.shamrock"
+        applicationId = "moe.rhwong.bocchirock"
         minSdk = 24
         targetSdk = 33
         versionCode = (System.currentTimeMillis() / 1000).toInt()
