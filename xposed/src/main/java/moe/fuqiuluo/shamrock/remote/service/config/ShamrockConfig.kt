@@ -41,6 +41,7 @@ internal object ShamrockConfig {
             putBoolean(  "use_cqcode", intent.getBooleanExtra("use_cqcode", false))             // 使用CQ码
             putBoolean(  "inject_packet",    intent.getBooleanExtra("inject_packet", false))    // 拦截无用包
             putBoolean(  "debug",    intent.getBooleanExtra("debug", false))    // 调试模式
+            putBoolean( "pro_api", intent.getBooleanExtra("pro_api", false)) // 开发调试API开关
 
             Config.defaultToken = intent.getStringExtra("token")
 
@@ -136,6 +137,11 @@ internal object ShamrockConfig {
         val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
         return mmkv.getInt("port", 5700)
     }
+
+    fun isPro(): Boolean {
+        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
+        return mmkv.getBoolean("pro_api", false)
+    }   
 
     fun isInjectPacket(): Boolean {
         val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")

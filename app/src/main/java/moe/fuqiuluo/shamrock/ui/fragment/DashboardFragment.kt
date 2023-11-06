@@ -360,7 +360,7 @@ private fun FunctionCard(
             
             Function(
                 title = "专业级接口",
-                desc = "用于开启专业级API",
+                desc = "用于开启特殊API",
                 descColor = Color.Red,
                 isSwitch = ShamrockConfig.isPro(ctx)
             ) {
