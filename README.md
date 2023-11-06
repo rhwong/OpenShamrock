@@ -16,8 +16,6 @@
 
 ## 简介
 
-# 测试用
-
 ☘ 基于 Xposed 实现 OneBot 标准的 QQ 机器人框架，原作者[**fuqiuluo**](https://github.com/fuqiuluo)已脱离开发，接下来由白池接手哦！本项目为OpenShamrock，不会有任何收费行为，欢迎大家的加入！
 
 > 本项目仅提供学习与交流用途，请在24小时内删除。   
