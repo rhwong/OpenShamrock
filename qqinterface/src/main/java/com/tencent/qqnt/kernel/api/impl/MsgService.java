@@ -1,9 +1,7 @@
 package com.tencent.qqnt.kernel.api.impl;
 
 import com.tencent.qqnt.kernel.nativeinterface.IKernelMsgListener;
-import com.tencent.qqnt.kernel.nativeinterface.IOperateCallback;
 import com.tencent.qqnt.kernel.nativeinterface.RichMediaFilePathInfo;
-import com.tencent.qqnt.kernel.nativeinterface.TempChatPrepareInfo;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -19,9 +17,5 @@ public class MsgService {
     @Nullable
     public String getRichMediaFilePathForMobileQQSend(@NotNull RichMediaFilePathInfo richMediaFilePathInfo) {
         return null;
-    }
-
-    public void prepareTempChat(TempChatPrepareInfo tempChatPrepareInfo, IOperateCallback cb) {
-
     }
 }

@@ -20,7 +20,7 @@ android {
     compileSdk = 33
 
     defaultConfig {
-        applicationId = "moe.rhwong.bocchirock"
+        applicationId = "moe.fuqiuluo.shamrock"
         minSdk = 24
         targetSdk = 33
         versionCode = (System.currentTimeMillis() / 1000).toInt()

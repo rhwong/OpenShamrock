@@ -27,12 +27,8 @@ import tencent.im.oidb.oidb_sso
 import kotlin.coroutines.resume
 
 internal object CardSvc: BaseSvc() {
-    private val GetModelShowLock by lazy {
-        Mutex()
-    }
-    private val refreshCardLock by lazy {
-        Mutex()
-    }
+    private val GetModelShowLock = Mutex()
+    private val refreshCardLock = Mutex()
 
     suspend fun getModelShow(uin: Long = app.longAccountUin): String {
         return GetModelShowLock.withLock {

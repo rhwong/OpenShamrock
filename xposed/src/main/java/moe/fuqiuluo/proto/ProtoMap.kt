@@ -7,11 +7,9 @@ import kotlinx.serialization.json.JsonElement
 import moe.fuqiuluo.shamrock.tools.jsonObject
 
 class ProtoMap(
-    val value: HashMap<Int, ProtoValue>,
-    val bytes: ByteString?
+    val value: HashMap<Int, ProtoValue>
 ): ProtoValue {
-    constructor(): this(hashMapOf(), null)
-    constructor(value: HashMap<Int, ProtoValue>): this(value, null)
+    constructor(): this(hashMapOf())
 
     override fun has(vararg tags: Int): Boolean {
         var curMap: ProtoMap = this
@@ -85,7 +83,7 @@ class ProtoMap(
                 return@forEachIndexed
             }
             if (!curProtoMap.contains(tag)) {
-                val tmp = ProtoMap()
+                val tmp = ProtoMap(hashMapOf())
                 curProtoMap[tag] = tmp
                 curProtoMap = tmp
             } else {

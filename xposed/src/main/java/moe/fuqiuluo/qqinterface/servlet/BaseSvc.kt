@@ -11,7 +11,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import moe.fuqiuluo.proto.protobufOf
 import moe.fuqiuluo.shamrock.utils.PlatformUtils
 import moe.fuqiuluo.shamrock.xposed.helper.AppRuntimeFetcher
@@ -24,7 +23,7 @@ import kotlin.concurrent.timer
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-internal abstract class BaseSvc {
+abstract class BaseSvc {
     companion object {
         val currentUin: String
             get() = app.currentAccountUin
@@ -36,35 +35,45 @@ internal abstract class BaseSvc {
             return ToServiceMsg("mobileqq.service", app.currentAccountUin, cmd)
         }
 
-        suspend fun sendOidbAW(cmd: String, cmdId: Int, serviceId: Int, data: ByteArray, trpc: Boolean = false, timeout: Long = 5000L): ByteArray? {
-            return withTimeoutOrNull(timeout) {
-                suspendCoroutine { continuation ->
-                    val seq = MsfCore.getNextSeq()
+        suspend fun sendOidbAW(cmd: String, cmdId: Int, serviceId: Int, data: ByteArray, trpc: Boolean = false): ByteArray? {
+            return suspendCoroutine { continuation ->
+                val seq = MsfCore.getNextSeq()
+                val timer = timer(initialDelay = 5000L, period = 5000L) {
                     GlobalScope.launch(Dispatchers.Default) {
-                        DynamicReceiver.register(IPCRequest(cmd, seq) {
-                            val buffer = it.getByteArrayExtra("buffer")!!
-                            continuation.resume(buffer)
-                        })
+                        PacketHandler.unregisterLessHandler(seq)
+                        continuation.resume(null)
                     }
-                    if (trpc) sendTrpcOidb(cmd, cmdId, serviceId, data, seq)
-                    else sendOidb(cmd, cmdId, serviceId, data, seq)
                 }
-            }?.copyOf()
+                GlobalScope.launch(Dispatchers.Default) {
+                    DynamicReceiver.register(IPCRequest(cmd, seq) {
+                        val buffer = it.getByteArrayExtra("buffer")!!
+                        timer.cancel()
+                        continuation.resume(buffer)
+                    })
+                }
+                if (trpc) sendTrpcOidb(cmd, cmdId, serviceId, data, seq)
+                else sendOidb(cmd, cmdId, serviceId, data, seq)
+            }
         }
 
-        suspend fun sendBufferAW(cmd: String, isPb: Boolean, data: ByteArray, timeout: Long = 5000L): ByteArray? {
-            return withTimeoutOrNull<ByteArray?>(timeout) {
-                suspendCoroutine { continuation ->
-                    val seq = MsfCore.getNextSeq()
+        suspend fun sendBufferAW(cmd: String, isPb: Boolean, data: ByteArray): ByteArray? {
+            return suspendCoroutine { continuation ->
+                val seq = MsfCore.getNextSeq()
+                val timer = timer(initialDelay = 5000L, period = 5000L) {
                     GlobalScope.launch(Dispatchers.Default) {
-                        DynamicReceiver.register(IPCRequest(cmd, seq) {
-                            val buffer = it.getByteArrayExtra("buffer")!!
-                            continuation.resume(buffer)
-                        })
-                        sendBuffer(cmd, isPb, data, seq)
+                        PacketHandler.unregisterLessHandler(seq)
+                        continuation.resume(null)
                     }
                 }
-            }?.copyOf()
+                GlobalScope.launch(Dispatchers.Default) {
+                    DynamicReceiver.register(IPCRequest(cmd, seq) {
+                        val buffer = it.getByteArrayExtra("buffer")!!
+                        timer.cancel()
+                        continuation.resume(buffer)
+                    })
+                    sendBuffer(cmd, isPb, data, seq)
+                }
+            }
         }
 
         fun sendOidb(cmd: String, cmdId: Int, serviceId: Int, buffer: ByteArray, seq: Int = -1, trpc: Boolean = false) {

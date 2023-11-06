@@ -7,7 +7,7 @@ import com.google.protobuf.UnknownFieldSet
 object ProtoUtils {
     fun decodeFromByteArray(data: ByteArray): ProtoMap {
         val unknownFieldSet = UnknownFieldSet.parseFrom(data)
-        val dest = ProtoMap(hashMapOf(), ByteString.copyFrom(data))
+        val dest = ProtoMap(hashMapOf())
         printUnknownFieldSet(unknownFieldSet, dest)
         return dest
     }
@@ -97,7 +97,7 @@ object ProtoUtils {
             field.lengthDelimitedList.forEach {
                 try {
                     val unknownFieldSet = UnknownFieldSet.parseFrom(it)
-                    val map = ProtoMap(hashMapOf(), it)
+                    val map = ProtoMap(hashMapOf())
                     printUnknownFieldSet(unknownFieldSet, map)
                     dest[tag] = map
                 } catch (e: Throwable) {
@@ -105,7 +105,7 @@ object ProtoUtils {
                 }
             }
             field.groupList.forEach {
-                val map = ProtoMap()
+                val map = ProtoMap(hashMapOf())
                 printUnknownFieldSet(it, map)
                 dest[tag] = map
             }

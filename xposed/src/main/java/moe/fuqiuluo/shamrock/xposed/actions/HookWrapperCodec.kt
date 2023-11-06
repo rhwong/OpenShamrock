@@ -38,7 +38,6 @@ internal class HookWrapperCodec: IAction {
         "LightAppSvc.mini_app_userapp.GetDropdownAppList",
         "LightAppSvc.mini_app_ad.GetAd",
         "SQQzoneSvc.advReport",
-        "OidbSvc.0xbcb_0", // 内部浏览器URL检测
         //"ConfigurationService.ReqGetConfig"
     )
 

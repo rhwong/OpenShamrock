@@ -1,20 +1,18 @@
 @file:OptIn(DelicateCoroutinesApi::class)
 package moe.fuqiuluo.shamrock.remote.service.listener
 
+import android.util.Log
 import moe.fuqiuluo.shamrock.helper.MessageHelper
 import com.tencent.qqnt.kernel.nativeinterface.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import moe.fuqiuluo.qqinterface.servlet.msg.convert.toCQCode
+import moe.fuqiuluo.qqinterface.servlet.msg.toCQCode
 import moe.fuqiuluo.qqinterface.servlet.transfile.RichProtoSvc
+import moe.fuqiuluo.shamrock.remote.service.api.GlobalPusher
 import moe.fuqiuluo.shamrock.remote.service.config.ShamrockConfig
 import moe.fuqiuluo.shamrock.helper.Level
 import moe.fuqiuluo.shamrock.helper.LogCenter
-import moe.fuqiuluo.shamrock.helper.db.MessageDB
-import moe.fuqiuluo.shamrock.remote.service.api.GlobalEventTransmitter
-import moe.fuqiuluo.shamrock.remote.service.data.push.MessageTempSource
-import moe.fuqiuluo.shamrock.remote.service.data.push.PostType
 import java.util.ArrayList
 import java.util.HashMap
 
@@ -54,10 +52,8 @@ internal object AioListener: IKernelMsgListener {
                         if (rule.white?.contains(record.peerUin) == false) return
                     }
 
-                    if(!GlobalEventTransmitter.MessageTransmitter.transGroupMessage(
-                        record, record.elements, rawMsg, msgHash
-                    )) {
-                        LogCenter.log("群消息推送失败 -> 推送目标可能不存在", Level.WARN)
+                    GlobalPusher().forEach {
+                        it.pushGroupMsg(record, record.elements, rawMsg, msgHash)
                     }
                 }
                 MsgConstant.KCHATTYPEC2C -> {
@@ -67,28 +63,8 @@ internal object AioListener: IKernelMsgListener {
                         if (rule.white?.contains(record.peerUin) == false) return
                     }
 
-                    if(!GlobalEventTransmitter.MessageTransmitter.transPrivateMessage(
-                            record, record.elements, rawMsg, msgHash
-                    )) {
-                        LogCenter.log("私聊消息推送失败 -> MessageTransmitter", Level.WARN)
-                    }
-                }
-
-                MsgConstant.KCHATTYPETEMPC2CFROMGROUP -> {
-                    if (!ShamrockConfig.allowTempSession()) {
-                        return
-                    }
-
-                    LogCenter.log("私聊临时消息(private = ${record.senderUin}, id = $msgHash, msg = $rawMsg)")
-                    ShamrockConfig.getPrivateRule()?.let { rule ->
-                        if (rule.black?.contains(record.peerUin) == true) return
-                        if (rule.white?.contains(record.peerUin) == false) return
-                    }
-
-                    if(!GlobalEventTransmitter.MessageTransmitter.transPrivateMessage(
-                        record, record.elements, rawMsg, msgHash, tempSource = MessageTempSource.Group
-                    )) {
-                        LogCenter.log("私聊临时消息推送失败 -> MessageTransmitter", Level.WARN)
+                    GlobalPusher().forEach {
+                        it.pushPrivateMsg(record, record.elements, rawMsg, msgHash)
                     }
                 }
                 else -> LogCenter.log("不支持PUSH事件: ${record.chatType}")
@@ -102,7 +78,6 @@ internal object AioListener: IKernelMsgListener {
         GlobalScope.launch {
             try {
                 val msgHash = MessageHelper.generateMsgIdHash(record.chatType, record.msgId)
-
                 MessageHelper.saveMsgMapping(
                     hash = msgHash,
                     qqMsgId = record.msgId,
@@ -116,74 +91,28 @@ internal object AioListener: IKernelMsgListener {
                 val rawMsg = record.elements.toCQCode(record.chatType, record.peerUin.toString())
                 if (rawMsg.isEmpty()) return@launch
 
-                LogCenter.log("发送消息($msgHash | ${record.msgSeq} | ${record.msgId}): $rawMsg")
-            } catch (e: Throwable) {
-                LogCenter.log(e.stackTraceToString(), Level.WARN)
-            }
-        }
-    }
-
-    override fun onMsgInfoListUpdate(msgList: ArrayList<MsgRecord>?) {
-        msgList?.forEach { record ->
-            GlobalScope.launch {
-                if (record.sendStatus == MsgConstant.KSENDSTATUSFAILED
-                    || record.sendStatus == MsgConstant.KSENDSTATUSSENDING) {
-                    return@launch
-                }
-
-                val msgHash = MessageHelper.generateMsgIdHash(record.chatType, record.msgId)
-
-                val mapping = MessageHelper.getMsgMappingByHash(msgHash)
-                if (mapping == null) {
-                    MessageHelper.saveMsgMapping(
-                        hash = msgHash,
-                        qqMsgId = record.msgId,
-                        chatType = record.chatType,
-                        subChatType = record.chatType,
-                        peerId = record.peerUin.toString(),
-                        msgSeq = record.msgSeq.toInt(),
-                        time = record.msgTime
-                    )
-                } else {
-                    LogCenter.log("Update message info from ${mapping.msgSeq} to ${record.msgSeq}", Level.INFO)
-                    MessageDB.getInstance().messageMappingDao()
-                        .updateMsgSeqByMsgHash(msgHash, record.msgSeq.toInt())
-                }
+                LogCenter.log("发送消息($msgHash|${record.msgSeq}): $rawMsg")
 
                 if (!ShamrockConfig.enableSelfMsg())
                     return@launch
 
-                val rawMsg = record.elements.toCQCode(record.chatType, record.peerUin.toString())
-                if (rawMsg.isEmpty()) return@launch
-
                 when (record.chatType) {
                     MsgConstant.KCHATTYPEGROUP -> {
-                        GlobalEventTransmitter.MessageTransmitter
-                            .transGroupMessage(record, record.elements, rawMsg, msgHash, PostType.MsgSent)
+                        GlobalPusher().forEach {
+                            it.pushSelfGroupSentMsg(record, record.elements, rawMsg, msgHash)
+                        }
                     }
                     MsgConstant.KCHATTYPEC2C -> {
-                        GlobalEventTransmitter.MessageTransmitter
-                            .transPrivateMessage(record, record.elements, rawMsg, msgHash, PostType.MsgSent)
-                    }
-                    MsgConstant.KCHATTYPETEMPC2CFROMGROUP -> {
-                        if (!ShamrockConfig.allowTempSession()) return@launch
-                        GlobalEventTransmitter.MessageTransmitter
-                            .transPrivateMessage(record, record.elements, rawMsg, msgHash, PostType.MsgSent, MessageTempSource.Group)
+                        GlobalPusher().forEach {
+                            it.pushSelfPrivateSentMsg(record, record.elements, rawMsg, msgHash)
+                        }
                     }
                     else -> LogCenter.log("不支持SELF PUSH事件: ${record.chatType}")
                 }
+            } catch (e: Throwable) {
+                LogCenter.log(e.stackTraceToString(), Level.WARN)
             }
         }
-    }
-
-    override fun onTempChatInfoUpdate(tempChatInfo: TempChatInfo) {
-
-    }
-
-    override fun onMsgAbstractUpdate(arrayList: ArrayList<MsgAbstract>?) {
-        //arrayList?.forEach {
-        //    LogCenter.log("onMsgAbstractUpdate($it)", Level.WARN)
-        //}
     }
 
     override fun onRecvMsgSvrRspTransInfo(
@@ -291,9 +220,8 @@ internal object AioListener: IKernelMsgListener {
         val fileSubId = fileMsg.fileSubId ?: ""
         val url = RichProtoSvc.getC2CFileDownUrl(fileId, fileSubId)
 
-        if(!GlobalEventTransmitter.FileNoticeTransmitter
-            .transPrivateFileEvent(record.msgTime, userId, fileId, fileSubId, fileName, fileSize, expireTime, url)) {
-            LogCenter.log("私聊文件消息推送失败 -> FileNoticeTransmitter", Level.WARN)
+        GlobalPusher().forEach {
+            it.pushC2CFileCome(record.msgTime, userId, fileId, fileSubId, fileName, fileSize, expireTime, url)
         }
     }
 
@@ -314,9 +242,8 @@ internal object AioListener: IKernelMsgListener {
 
         val url = RichProtoSvc.getGroupFileDownUrl(record.peerUin, uuid, bizId)
 
-        if(!GlobalEventTransmitter.FileNoticeTransmitter
-            .transGroupFileEvent(record.msgTime, userId, groupId, uuid, fileName, fileSize, bizId, url)) {
-            LogCenter.log("群聊文件消息推送失败 -> FileNoticeTransmitter", Level.WARN)
+        GlobalPusher().forEach {
+            it.pushGroupFileCome(record.msgTime, userId, groupId, uuid, fileName, fileSize, bizId, url)
         }
     }
 
@@ -384,7 +311,11 @@ internal object AioListener: IKernelMsgListener {
         //LogCenter.log("onLineDev($arrayList)")
     }
 
-    override fun onLogLevelChanged(newLevel: Long) {
+    override fun onLogLevelChanged(j2: Long) {
+
+    }
+
+    override fun onMsgAbstractUpdate(arrayList: ArrayList<MsgAbstract>?) {
 
     }
 
@@ -404,12 +335,16 @@ internal object AioListener: IKernelMsgListener {
 
     }
 
+    override fun onMsgInfoListUpdate(arrayList: ArrayList<MsgRecord>?) {
+
+    }
+
     override fun onMsgQRCodeStatusChanged(i2: Int) {
 
     }
 
-    override fun onMsgRecall(chatType: Int, peerId: String?, msgId: Long) {
-        LogCenter.log("onMsgRecall($chatType, $peerId, $msgId)")
+    override fun onMsgRecall(i2: Int, str: String?, j2: Long) {
+        LogCenter.log("onMsgRecall($i2, $str, $j2)")
     }
 
     override fun onMsgSecurityNotify(msgRecord: MsgRecord?) {
@@ -450,6 +385,10 @@ internal object AioListener: IKernelMsgListener {
 
     override fun onSysMsgNotification(i2: Int, j2: Long, j3: Long, arrayList: ArrayList<Byte>?) {
         LogCenter.log("onSysMsgNotification($i2, $j2, $j3, $arrayList)", Level.DEBUG)
+    }
+
+    override fun onTempChatInfoUpdate(tempChatInfo: TempChatInfo?) {
+
     }
 
     override fun onUnreadCntAfterFirstView(hashMap: HashMap<Int, ArrayList<UnreadCntInfo>>?) {

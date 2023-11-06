@@ -1,9 +1,7 @@
 package moe.fuqiuluo.shamrock.remote.service.config
 
 import android.content.Intent
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import moe.fuqiuluo.shamrock.tools.GlobalJson5
+import moe.fuqiuluo.shamrock.tools.GlobalJson
 import moe.fuqiuluo.shamrock.utils.MMKVFetcher
 import mqq.app.MobileQQ
 import java.io.File
@@ -14,8 +12,8 @@ internal object ShamrockConfig {
             if (it.exists()) it.delete()
             it.mkdirs()
         }
-    private val Config: ServiceConfig by lazy {
-        GlobalJson5.decodeFromString(ConfigDir.resolve("config.json").also {
+    private val Config by lazy {
+        GlobalJson.decodeFromString<ServiceConfig>(ConfigDir.resolve("config.json").also {
             if (!it.exists()) it.writeText("{}")
         }.readText())
     }
@@ -25,39 +23,24 @@ internal object ShamrockConfig {
         return mmkv.getBoolean("isInit", false)
     }
 
-    private fun updateConfig(config: ServiceConfig = Config) {
-        ConfigDir.resolve("config.json").writeText(GlobalJson5.encodeToString(config))
-    }
-
     fun updateConfig(intent: Intent) {
         val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
         mmkv.apply {
             putBoolean(  "tablet",     intent.getBooleanExtra("tablet", false))                 // 强制平板模式
             putInt(      "port",       intent.getIntExtra("port", 5700))                         // 主动HTTP端口
             putBoolean(  "ws",         intent.getBooleanExtra("ws", false))                     // 主动WS开关
+            putInt(      "ws_port",    intent.getIntExtra("ws_port", 5800))                         // 主动WS端口
             putBoolean(  "http",       intent.getBooleanExtra("http", false))                   // HTTP回调开关
             putString(   "http_addr",  intent.getStringExtra("http_addr"))                                  // WebHook回调地址
             putBoolean(  "ws_client",  intent.getBooleanExtra("ws_client", false))              // 被动WS开关
             putBoolean(  "use_cqcode", intent.getBooleanExtra("use_cqcode", false))             // 使用CQ码
+            putString(   "ws_addr",    intent.getStringExtra("ws_addr"))                                    // 被动WS地址
+            putBoolean(  "pro_api",    intent.getBooleanExtra("pro_api", false))                // 开发调试API开关
             putBoolean(  "inject_packet",    intent.getBooleanExtra("inject_packet", false))    // 拦截无用包
             putBoolean(  "debug",    intent.getBooleanExtra("debug", false))    // 调试模式
+            putString(   "token",      intent.getStringExtra("token"))                                      // 鉴权
 
-            Config.defaultToken = intent.getStringExtra("token")
-
-            val wsPort = intent.getIntExtra("ws_port", 5800)
-            Config.activeWebSocket = if (Config.activeWebSocket == null) ConnectionConfig(
-                address = "0.0.0.0",
-                port = wsPort,
-            ) else Config.activeWebSocket?.also {
-                it.port = wsPort
-            }
-
-            Config.passiveWebSocket = intent.getStringExtra("ws_addr")?.split(",", "|", "，")?.filter { address ->
-                address.isNotBlank() && (address.startsWith("ws://") || address.startsWith("wss://"))
-            }?.map {
-                ConnectionConfig(address = it)
-            }?.toMutableList()
-
+            // 接收ssl配置
             putString(   "key_store",      intent.getStringExtra("key_store"))  // 证书路径
             putString(   "ssl_pwd",      intent.getStringExtra("ssl_pwd"))  // 证书密码
             putString(   "ssl_private_pwd",      intent.getStringExtra("ssl_private_pwd"))  // 证书私钥密码
@@ -68,22 +51,32 @@ internal object ShamrockConfig {
 
             putBoolean("enable_self_msg", intent.getBooleanExtra("enable_self_msg", false)) // 推送自己发的消息
 
+            putBoolean("echo_number", intent.getBooleanExtra("echo_number", false)) // 将echo格式化为数字输出
+
             putBoolean("isInit", true)
         }
-        updateConfig()
     }
 
-    fun allowTempSession(): Boolean {
-        return Config.allowTempSession
+    fun isEchoNumber(): Boolean {
+        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
+        return mmkv.getBoolean("echo_number", false)
+    }
+
+    /**
+     * 忽略所有推送事件
+     */
+    fun isIgnoreAllEvent(): Boolean {
+        return false
     }
 
     fun getGroupMsgRule(): GroupRule? {
-        return Config.rules?.groupRule
+        return Config.groupRule
     }
 
     fun getPrivateRule(): PrivateRule? {
-        return Config.rules?.privateRule
+        return Config.privateRule
     }
+
 
     fun enableSelfMsg(): Boolean {
         val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
@@ -95,8 +88,9 @@ internal object ShamrockConfig {
         return mmkv.getBoolean("ws_client", false)
     }
 
-    fun getWebSocketClientAddress(): List<ConnectionConfig> {
-        return Config.passiveWebSocket ?: emptyList()
+    fun getWebSocketClientAddress(): String {
+        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
+        return mmkv.getString("ws_addr", "") ?: ""
     }
 
     fun openWebSocket(): Boolean {
@@ -104,12 +98,14 @@ internal object ShamrockConfig {
         return mmkv.getBoolean("ws", false)
     }
 
-    fun getActiveWebSocketConfig(): ConnectionConfig? {
-        return Config.activeWebSocket
+    fun getWebSocketPort(): Int {
+        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
+        return mmkv.getInt("ws_port", 5800)
     }
 
     fun getToken(): String {
-        return Config.defaultToken ?: ""
+        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
+        return mmkv.getString("token", "") ?: ""
     }
 
     fun useCQ(): Boolean {
@@ -135,6 +131,11 @@ internal object ShamrockConfig {
     fun getPort(): Int {
         val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
         return mmkv.getInt("port", 5700)
+    }
+
+    fun isPro(): Boolean {
+        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
+        return mmkv.getBoolean("pro_api", false)
     }
 
     fun isInjectPacket(): Boolean {
@@ -177,39 +178,5 @@ internal object ShamrockConfig {
     fun getSslPort(): Int {
         val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
         return mmkv.getInt("ssl_port", getPort())
-    }
-
-    fun isDev(): Boolean {
-        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
-        return mmkv.getBoolean("dev", false)
-    }
-
-    operator fun set(key: String, value: String) {
-        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
-        mmkv.putString(key, value)
-    }
-
-    operator fun set(key: String, value: Boolean) {
-        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
-        mmkv.putBoolean(key, value)
-    }
-
-    operator fun set(key: String, value: Int) {
-        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
-        mmkv.putInt(key, value)
-    }
-
-    operator fun set(key: String, value: Long) {
-        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
-        mmkv.putLong(key, value)
-    }
-
-    operator fun set(key: String, value: Float) {
-        val mmkv = MMKVFetcher.mmkvWithId("shamrock_config")
-        mmkv.putFloat(key, value)
-    }
-
-    fun isAntiTrace(): Boolean {
-        return Config.antiTrace
     }
 }

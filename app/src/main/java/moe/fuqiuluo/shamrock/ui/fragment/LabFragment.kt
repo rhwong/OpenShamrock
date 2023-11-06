@@ -180,7 +180,6 @@ fun LabFragment() {
                     return@Function true
                 }
 
-                /*
                 Function(
                     title = "使用纯数字ECHO",
                     desc = "在部分强类型语言框架，需要打开此开关。",
@@ -190,7 +189,7 @@ fun LabFragment() {
                     ShamrockConfig.setEchoNumber(ctx, it)
                     ShamrockConfig.pushUpdate(ctx)
                     return@Function true
-                }*/
+                }
             }
         }
     }

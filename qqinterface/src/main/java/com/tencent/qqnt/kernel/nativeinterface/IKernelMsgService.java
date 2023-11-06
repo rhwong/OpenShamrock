@@ -16,11 +16,7 @@ public interface IKernelMsgService {
 
     void addLocalRecordMsg(Contact contact, long msgId, MsgElement elem, HashMap<Integer, MsgAttributeInfo> hashMap, boolean z, IOperateCallback callback);
 
-    void getMultiMsg(Contact contact, long rootMsgId, long parentMsgId, IGetMultiMsgCallback cb);
-
-    void clearMsgRecords(Contact contact, IClearMsgRecordsCallback cb);
-
-    String createUidFromTinyId(long j2, long j3);
+    void getMultiMsg(Contact contact, long msgId, long uniseq, IGetMultiMsgCallback cb);
 
     void switchBackGround(BackGroundInfo backGroundInfo, IOperateCallback cb);
 

@@ -14,10 +14,7 @@ internal object GetGroupSubFiles: IActionHandler() {
     }
 
     suspend operator fun invoke(groupId: String, folderId: String, echo: JsonElement = EmptyJsonString): String {
-        FileSvc.getGroupFiles(groupId.toLong(), folderId).onSuccess {
-            return ok(it, echo = echo)
-        }.getOrNull()
-        return error(why = "获取失败，请查看日志", echo = echo)
+        return ok(FileSvc.getGroupFiles(groupId.toLong(), folderId), echo)
     }
 
     override val requiredParams: Array<String> = arrayOf("group_id", "folder_id")

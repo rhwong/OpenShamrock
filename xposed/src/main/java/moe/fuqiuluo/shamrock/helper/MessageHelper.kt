@@ -23,13 +23,7 @@ import moe.fuqiuluo.shamrock.tools.jsonArray
 import kotlin.math.abs
 
 internal object MessageHelper {
-    suspend fun sendMessageWithoutMsgId(
-        chatType: Int,
-        peerId: String,
-        message: JsonArray,
-        callback: IOperateCallback,
-        fromId: String = peerId
-    ): Pair<Long, Int> {
+    suspend fun sendMessageWithoutMsgId(chatType: Int, peerId: String, message: JsonArray, callback: IOperateCallback): Pair<Long, Int> {
         val uniseq = generateMsgId(chatType)
         var nonMsg: Boolean
         val msg = messageArrayToMessageElements(chatType, uniseq.second, peerId, message).also {
@@ -44,9 +38,8 @@ internal object MessageHelper {
             if(callback is MsgSvc.MessageCallback) {
                 callback.msgHash = uniseq.first
             }
-
             service.sendMsg(
-                generateContact(chatType, peerId, fromId),
+                generateContact(chatType, peerId),
                 uniseq.second,
                 msg as ArrayList<MsgElement>,
                 callback
@@ -58,7 +51,7 @@ internal object MessageHelper {
     }
 
     suspend fun generateContact(chatType: Int, id: String, subId: String = ""): Contact {
-        val peerId = if (MsgConstant.KCHATTYPEC2C == chatType || MsgConstant.KCHATTYPETEMPC2CFROMGROUP == chatType) {
+        val peerId = if (MsgConstant.KCHATTYPEC2C == chatType) {
             ContactHelper.getUidByUinAsync(id.toLong())
         } else id
         return Contact(chatType, peerId, subId)
@@ -114,7 +107,6 @@ internal object MessageHelper {
         val key =  when (chatType) {
             MsgConstant.KCHATTYPEGROUP -> "grp$msgId"
             MsgConstant.KCHATTYPEC2C -> "c2c$msgId"
-            MsgConstant.KCHATTYPETEMPC2CFROMGROUP -> "tmpgrp$msgId"
             else -> error("不支持的消息来源类型 | generateMsgIdHash: $chatType")
         }
         return abs(key.hashCode())
@@ -177,7 +169,7 @@ internal object MessageHelper {
         return arrayList.jsonArray
     }
 
-    fun encodeCQCode(msg: List<Map<String, JsonElement>>): String {
+    fun encodeCQCode(msg: ArrayList<HashMap<String, JsonElement>>): String {
         return nativeEncodeCQCode(msg.map {
             val params = hashMapOf<String, String>()
             it.forEach { (key, value) ->

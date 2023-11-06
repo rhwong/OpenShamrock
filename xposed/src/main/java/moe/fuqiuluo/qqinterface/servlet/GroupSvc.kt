@@ -38,12 +38,8 @@ import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 
 internal object GroupSvc: BaseSvc() {
-    private val RefreshTroopMemberInfoLock by lazy {
-        Mutex()
-    }
-    private val RefreshTroopMemberListLock by lazy {
-        Mutex()
-    }
+    private val RefreshTroopMemberInfoLock = Mutex()
+    private val RefreshTroopMemberListLock = Mutex()
 
     private lateinit var METHOD_REQ_MEMBER_INFO: Method
     private lateinit var METHOD_REQ_MEMBER_INFO_V2: Method
@@ -66,12 +62,6 @@ internal object GroupSvc: BaseSvc() {
             memberList = requestTroopMemberInfo(service, groupId).onFailure {
                 return Result.failure(Exception("获取群成员列表失败"))
             }.getOrThrow()
-        }
-
-        getGroupInfo(groupId, true).onSuccess {
-            if(it.wMemberNum > memberList.size) {
-                return getGroupMemberList(groupId, true)
-            }
         }
 
         return Result.success(memberList)

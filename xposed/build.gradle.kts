@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     //id("io.realm.kotlin")
     id("kotlin-kapt")
-    kotlin("plugin.serialization") version "1.8.10"
+    kotlin("plugin.serialization") version "1.8.0"
 }
 
 android {
@@ -13,6 +13,7 @@ android {
     defaultConfig {
         minSdk = 24
 
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
         externalNativeBuild {
             cmake {
@@ -49,9 +50,6 @@ android {
 }
 
 dependencies {
-    compileOnly ("de.robv.android.xposed:api:82")
-    compileOnly (project(":qqinterface"))
-
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.9.0")
@@ -61,8 +59,7 @@ dependencies {
     //implementation("io.realm.kotlin:library-sync:1.11.0")
 
     val ktorVersion = "2.3.3"
-    //implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
-    implementation("io.github.xn32:json5k:0.3.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
     implementation("org.jetbrains.kotlinx:kotlinx-io-jvm:0.1.16")
     implementation("io.ktor:ktor-server-core:$ktorVersion")
     implementation("io.ktor:ktor-server-host-common:$ktorVersion")
@@ -95,5 +92,12 @@ dependencies {
     //ksp("androidx.room:room-compiler:$roomVersion")
     // optional - Kotlin Extensions and Coroutines support for Room
     implementation("androidx.room:room-ktx:$roomVersion")
+
+    compileOnly ("de.robv.android.xposed:api:82")
+    compileOnly (project(":qqinterface"))
+
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
 

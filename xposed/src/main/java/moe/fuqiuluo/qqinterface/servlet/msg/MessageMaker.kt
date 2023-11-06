@@ -539,7 +539,7 @@ internal object MessageMaker {
             file = FileUtils.parseAndSave(data["url"].asString)
         }
         if (!file.exists()) {
-            return Result.failure(LogicException("Voice(${file.name}) file is not exists, please check your filename."))
+            throw LogicException("Voice(${file.name}) file is not exists, please check your filename.")
         }
         val isMagic = data["magic"].asStringOrNull == "1"
 
@@ -580,14 +580,11 @@ internal object MessageMaker {
         //    QQNTWrapperUtil.CppProxy.copyFile(file.absolutePath, originalPath)
         //}
 
-        if(!(Transfer with when (chatType) {
+        Transfer with when (chatType) {
             MsgConstant.KCHATTYPEGROUP -> Troop(peerId)
             MsgConstant.KCHATTYPEC2C -> Private(peerId)
-            MsgConstant.KCHATTYPETEMPC2CFROMGROUP -> Private(peerId)
             else -> error("Not supported chatType($chatType) for RecordMsg")
-        } trans VoiceResource(file))) {
-            return Result.failure(RuntimeException("上传语音失败: $file"))
-        }
+        } trans VoiceResource(file)
 
         val elem = MsgElement()
         elem.elementType = MsgConstant.KELEMTYPEPTT

@@ -8,7 +8,7 @@ import moe.fuqiuluo.shamrock.remote.action.IActionHandler
 import moe.fuqiuluo.shamrock.remote.service.data.MessageDetail
 import moe.fuqiuluo.shamrock.remote.service.data.MessageSender
 import moe.fuqiuluo.qqinterface.servlet.MsgSvc
-import moe.fuqiuluo.qqinterface.servlet.msg.convert.MessageConvert
+import moe.fuqiuluo.qqinterface.servlet.msg.MsgConvert
 import moe.fuqiuluo.shamrock.tools.EmptyJsonString
 
 internal object GetMsg: IActionHandler() {
@@ -31,9 +31,7 @@ internal object GetMsg: IActionHandler() {
             sender = MessageSender(
                 msg.senderUin, msg.sendNickName, "unknown", 0, msg.senderUid
             ),
-            message = MessageConvert.convertMessageRecordToMsgSegment(msg).map {
-                it.toJson()
-            },
+            message = MsgConvert.convertMsgRecordToMsgSegment(msg),
             peerId = msg.peerUin,
             groupId = if (msg.chatType == MsgConstant.KCHATTYPEGROUP) msg.peerUin else 0,
             targetId = if (msg.chatType != MsgConstant.KCHATTYPEGROUP) msg.peerUin else 0

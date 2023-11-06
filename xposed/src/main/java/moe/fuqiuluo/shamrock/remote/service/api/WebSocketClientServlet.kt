@@ -2,15 +2,12 @@
 
 package moe.fuqiuluo.shamrock.remote.service.api
 
-import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import moe.fuqiuluo.shamrock.remote.action.ActionManager
 import moe.fuqiuluo.shamrock.remote.action.ActionSession
 import moe.fuqiuluo.shamrock.remote.entries.EmptyObject
@@ -20,7 +17,6 @@ import moe.fuqiuluo.shamrock.remote.service.config.ShamrockConfig
 import moe.fuqiuluo.shamrock.tools.*
 import moe.fuqiuluo.shamrock.helper.Level
 import moe.fuqiuluo.shamrock.helper.LogCenter
-import moe.fuqiuluo.shamrock.remote.service.HttpService
 import moe.fuqiuluo.shamrock.remote.service.data.BotStatus
 import moe.fuqiuluo.shamrock.remote.service.data.Self
 import moe.fuqiuluo.shamrock.remote.service.data.push.MetaEventType
@@ -28,6 +24,7 @@ import moe.fuqiuluo.shamrock.remote.service.data.push.MetaSubType
 import moe.fuqiuluo.shamrock.remote.service.data.push.PostType
 import moe.fuqiuluo.shamrock.remote.service.data.push.PushMetaEvent
 import moe.fuqiuluo.shamrock.xposed.helper.AppRuntimeFetcher
+import mqq.app.MobileQQ
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.handshake.ServerHandshake
 import java.lang.Exception
@@ -37,19 +34,16 @@ import kotlin.concurrent.timer
 internal abstract class WebSocketClientServlet(
     url: String,
     wsHeaders: Map<String, String>
-) : BaseTransmitServlet, WebSocketClient(URI(url), wsHeaders) {
-    private val sendLock = Mutex()
-
-    override fun allowTransmit(): Boolean {
+) : BasePushServlet, WebSocketClient(URI(url), wsHeaders) {
+    override fun allowPush(): Boolean {
         return ShamrockConfig.openWebSocketClient()
     }
 
     override fun onOpen(handshakedata: ServerHandshake?) {
         LogCenter.log("WebSocketClient onOpen: ${handshakedata?.httpStatus}, ${handshakedata?.httpStatusMessage}")
-
         startHeartbeatTimer()
         pushMetaLifecycle()
-        initTransmitter()
+        GlobalPusher.register(this)
     }
 
     override fun onMessage(message: String) {
@@ -85,20 +79,18 @@ internal abstract class WebSocketClientServlet(
 
     override fun onClose(code: Int, reason: String?, remote: Boolean) {
         LogCenter.log("WebSocketClient onClose: $code, $reason, $remote")
-        cancelFlowJobs()
+        GlobalPusher.unregister(this)
     }
 
     override fun onError(ex: Exception?) {
         LogCenter.log("WebSocketClient onError: ${ex?.message}")
-        cancelFlowJobs()
+        GlobalPusher.unregister(this)
     }
 
-    protected suspend inline fun <reified T> pushTo(body: T) {
-        if (!allowTransmit() || isClosed || isClosing) return
+    protected inline fun <reified T> pushTo(body: T) {
+        if (!allowPush() || isClosed || isClosing) return
         try {
-            sendLock.withLock {
-                send(GlobalJson.encodeToString(body))
-            }
+            send(GlobalJson.encodeToString(body))
         } catch (e: Throwable) {
             LogCenter.log("被动WS推送失败: ${e.stackTraceToString()}", Level.ERROR)
         }

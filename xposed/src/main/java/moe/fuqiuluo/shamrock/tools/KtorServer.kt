@@ -25,8 +25,6 @@ import io.ktor.http.parseUrlEncodedParameters
 import io.ktor.server.request.httpMethod
 import io.ktor.server.routing.route
 import kotlinx.serialization.json.JsonElement
-import moe.fuqiuluo.shamrock.helper.Level
-import moe.fuqiuluo.shamrock.helper.LogCenter
 import moe.fuqiuluo.shamrock.remote.entries.CommonResult
 import moe.fuqiuluo.shamrock.remote.entries.EmptyObject
 import moe.fuqiuluo.shamrock.remote.entries.Status
@@ -90,7 +88,7 @@ suspend fun ApplicationCall.fetchPostOrThrow(key: String): String {
 }
 
 fun ApplicationCall.isJsonData(): Boolean {
-    return ContentType.Application.Json == request.contentType() || ContentType.Application.ProblemJson == request.contentType()
+    return ContentType.Application.Json == request.contentType()
 }
 
 suspend fun ApplicationCall.fetchPostOrNull(key: String): String? {
@@ -104,7 +102,6 @@ suspend fun ApplicationCall.fetchPostOrNull(key: String): String? {
         if (isJsonData()) {
             Json.parseToJsonElement(receiveText()).jsonObject.also {
                 attributes.put(jsonKey, it)
-                attributes.put(isJsonKey, true)
             }[key].asStringOrNull
         } else if (
             ContentType.Application.FormUrlEncoded == request.contentType()
@@ -116,7 +113,7 @@ suspend fun ApplicationCall.fetchPostOrNull(key: String): String? {
             receiveTextAsUnknown(key)
         }
     }.getOrElse {
-        throw IllegalArgumentException("JSON数据格式不合法")
+        receiveTextAsUnknown(key)
     }
 }
 
@@ -180,7 +177,6 @@ suspend fun PipelineContext<Unit, ApplicationCall>.isJsonString(key: String): Bo
     } else {
         Json.parseToJsonElement(call.receiveText()).jsonObject.also {
             call.attributes.put(jsonKey, it)
-            call.attributes.put(isJsonKey, true)
         }
     }
     return data[key] is JsonPrimitive
@@ -249,7 +245,6 @@ suspend fun PipelineContext<Unit, ApplicationCall>.fetchPostJsonArray(key: Strin
     } else {
         Json.parseToJsonElement(call.receiveText()).jsonObject.also {
             call.attributes.put(jsonKey, it)
-            call.attributes.put(isJsonKey, true)
         }
     }
     return data[key].asJsonArray
